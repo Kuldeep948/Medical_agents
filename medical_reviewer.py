@@ -88,7 +88,7 @@ RULES:
 class MedicalReviewer:
     def __init__(self, api_key: str, pubmed_api_key: Optional[str] = None):
         genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel('gemini-pro')
+        self.model = genai.GenerativeModel('gemini-2.5-flash')
         self.pubmed_service = PubMedService(api_key=pubmed_api_key)
 
     async def analyze(self, collateral_text: str, backup_docs: List[Dict[str, str]], 
@@ -101,7 +101,22 @@ class MedicalReviewer:
             backup_docs: List of dicts with 'filename' and 'text' keys.
             metadata: Dict with brand_name, generic_name, therapy_area, etc.
         """
-        prompt = self._construct_prompt(collateral_text, backup_docs, metadata)
+        # Validate inputs
+        if not isinstance(backup_docs, list):
+            backup_docs = []
+        
+        # Ensure each backup_doc is a dict
+        validated_backup_docs = []
+        for doc in backup_docs:
+            if isinstance(doc, dict):
+                validated_backup_docs.append(doc)
+            elif isinstance(doc, str):
+                validated_backup_docs.append({"filename": "Unknown", "text": doc})
+        
+        if not isinstance(metadata, dict):
+            metadata = {}
+        
+        prompt = self._construct_prompt(collateral_text, validated_backup_docs, metadata)
         
         try:
             response = await self.model.generate_content_async(prompt)
@@ -114,6 +129,7 @@ class MedicalReviewer:
                 response_text = response_text[3:]
             if response_text.endswith("```"):
                 response_text = response_text[:-3]
+            response_text = response_text.strip()
             
             result = json.loads(response_text)
             
@@ -128,6 +144,17 @@ class MedicalReviewer:
             
             return result
             
+        except json.JSONDecodeError as e:
+            return {
+                "error": f"JSON parsing failed: {str(e)}",
+                "raw_response": response_text[:500] if 'response_text' in dir() else "No response",
+                "overall_score": 0,
+                "summary": {"total_claims": 0},
+                "claims": [],
+                "pubmed_queries_needed": [],
+                "backup_documents_reviewed": [],
+                "recommendations": {"immediate_actions": [], "citations_needed": []}
+            }
         except Exception as e:
             return {
                 "error": str(e),

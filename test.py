@@ -143,7 +143,7 @@ async def test_visual():
 
 
 async def test_medical():
-    """Test Medical Reviewer with your claims."""
+    """Test Medical Reviewer with realistic claims and backup documents."""
     from medical_reviewer import MedicalReviewer
     
     print("\n" + "=" * 60)
@@ -151,44 +151,154 @@ async def test_medical():
     print("=" * 60)
     
     # ============================================
-    # PROVIDE YOUR INPUT HERE
+    # SAMPLE COLLATERAL WITH VARIOUS CLAIM TYPES
     # ============================================
     
     collateral_text = """
-    DiabetoFix - Key Benefits:
-    - 47% reduction in HbA1c compared to placebo (p<0.001)
-    - Well-tolerated with minimal side effects
-    - Superior to standard metformin therapy
-    - Suitable for all diabetic patients
+    CARDIOMAX - Comprehensive Cardiovascular Protection
+    
+    HEADLINE:
+    67% Reduction in Major Adverse Cardiac Events (MACE) - 
+    Superior to Standard Therapy
+    
+    KEY EFFICACY DATA:
+    • Primary endpoint: 47% reduction in hospitalization for heart failure (p<0.001)
+    • Secondary endpoint: 32% reduction in cardiovascular mortality (p=0.003)
+    • Statistically significant improvement in exercise capacity (p=0.08)
+    • 24-hour blood pressure control with once-daily dosing
+    
+    SAFETY PROFILE:
+    • Well-tolerated with minimal side effects
+    • Safe in patients with renal impairment
+    • No significant drug interactions reported
+    • Suitable for all cardiac patients including elderly
+    
+    MECHANISM OF ACTION:
+    CardioMax selectively inhibits the sodium-glucose cotransporter-2 (SGLT2) 
+    in the renal proximal tubules, reducing glucose reabsorption and providing 
+    cardiovascular protection through osmotic diuresis.
+    
+    DOSING:
+    • Start with 10mg once daily
+    • May increase to 25mg based on response
+    • Take with or without food
+    
+    References: CARDIO-OUTCOMES Trial 2023, FDA Approval Letter
     """
+    
+    # ============================================
+    # BACKUP DOCUMENTS (Clinical Trial + PI)
+    # ============================================
     
     backup_docs = [
         {
-            "filename": "Clinical_Trial.pdf",
+            "filename": "CARDIO_OUTCOMES_Trial_2023.pdf",
             "text": """
-            Phase 3 Clinical Trial Results:
-            - HbA1c reduction: 45.2% vs placebo (p<0.001)
-            - Common adverse events: UTI (3%), hypoglycemia (1.5%)
-            - Study population: Adults with Type 2 diabetes, eGFR>45
+            CARDIO-OUTCOMES Phase 3 Clinical Trial Results
+            
+            Study Design:
+            - Randomized, double-blind, placebo-controlled
+            - N = 4,500 patients with established cardiovascular disease
+            - Follow-up: 36 months
+            
+            Primary Endpoint Results:
+            - Hospitalization for heart failure: 42% reduction vs placebo (p<0.001)
+              [Note: Collateral claims 47% - this is a DATA MISMATCH]
+            
+            Secondary Endpoints:
+            - Cardiovascular mortality: 32% reduction (p=0.003) ✓
+            - All-cause mortality: 18% reduction (p=0.02)
+            - Exercise capacity (6MWT): Improved but not statistically significant (p=0.08)
+              [Note: p=0.08 does NOT meet significance threshold]
+            
+            MACE Composite:
+            - 38% reduction in MACE (p<0.001)
+              [Note: Collateral claims 67% - MAJOR DISCREPANCY]
+            
+            Safety Data:
+            - Overall adverse events similar to placebo
+            - Genital infections: 4.2% vs 1.1% placebo
+            - Diabetic ketoacidosis: 0.3% (rare but serious)
+            - Hypotension: 2.1% vs 0.8% placebo
+            
+            Study Population:
+            - Adults 45-80 years with Type 2 diabetes and established CVD
+            - eGFR ≥ 30 mL/min/1.73m²
+            - Excluded: Type 1 diabetes, pregnancy, severe hepatic impairment
             """
         },
+        {
+            "filename": "CardioMax_Prescribing_Information.pdf",
+            "text": """
+            CARDIOMAX (dapagliflozin) PRESCRIBING INFORMATION
+            
+            INDICATIONS AND USAGE:
+            - Type 2 diabetes mellitus with established cardiovascular disease
+            - Heart failure with reduced ejection fraction (HFrEF)
+            
+            CONTRAINDICATIONS:
+            - Type 1 diabetes mellitus
+            - Diabetic ketoacidosis
+            - Severe renal impairment (eGFR < 25 mL/min)
+            - Known hypersensitivity to dapagliflozin
+            
+            WARNINGS AND PRECAUTIONS:
+            - Hypotension: Risk increased in elderly, patients on diuretics
+            - Ketoacidosis: Monitor for signs/symptoms
+            - Genital mycotic infections: Common adverse event
+            - Fournier's gangrene: Rare but serious
+            
+            USE IN SPECIFIC POPULATIONS:
+            - Elderly (≥65): Use with caution due to hypotension risk
+            - Renal Impairment: 
+              • eGFR 25-45: Reduced efficacy for glycemic control
+              • eGFR < 25: Contraindicated
+            - Hepatic Impairment: Not recommended in severe impairment
+            - Pregnancy: Category C - not recommended
+            
+            DOSAGE AND ADMINISTRATION:
+            - Initial dose: 5mg once daily (NOT 10mg as claimed)
+            - Maximum dose: 10mg once daily (NOT 25mg)
+            - Morning administration recommended
+            
+            DRUG INTERACTIONS:
+            - Insulin/sulfonylureas: Increased hypoglycemia risk
+            - Diuretics: Additive effect, monitor volume status
+            - Lithium: Monitor lithium levels
+            """
+        }
     ]
     
     metadata = {
-        "brand_name": "DiabetoFix",
+        "brand_name": "CardioMax",
         "generic_name": "Dapagliflozin",
-        "therapy_area": "Diabetes",
-        "indications": "Type 2 Diabetes Mellitus",
-        "target_audience": "General Practitioners"
+        "therapy_area": "Cardiovascular / Diabetes",
+        "indications": "Type 2 Diabetes with CVD, Heart Failure (HFrEF)",
+        "target_audience": "Cardiologists"
     }
     
     # ============================================
+    
+    print("\nCollateral Claims to Validate:")
+    print("-" * 50)
+    print(collateral_text[:500] + "...")
+    print("-" * 50)
+    
+    print("\nBackup Documents Provided:")
+    for doc in backup_docs:
+        print(f"  • {doc['filename']}")
+    
+    print("\n" + "=" * 50)
+    print("ANALYZING CLAIMS...")
+    print("=" * 50)
     
     expert = MedicalReviewer(api_key=API_KEY)
     result = await expert.analyze(collateral_text, backup_docs, metadata)
     
     import json
-    print("\nResult:")
+    print("\n" + "=" * 50)
+    print("MEDICAL REVIEW RESULT:")
+    print("=" * 50)
     print(json.dumps(result, indent=2))
 
 
