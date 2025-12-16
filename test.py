@@ -12,24 +12,19 @@ load_dotenv()
 API_KEY = os.getenv("GEMINI_API_KEY")
 
 
-async def test_copywriting():
-    """Test Copywriting Expert with your input."""
+async def test_copywriting_from_image():
+    """Test Copywriting Expert with image input."""
     from copywriting_expert import CopywritingExpert
     
     print("\n" + "=" * 60)
-    print("COPYWRITING EXPERT - Enter Your Input")
+    print("COPYWRITING EXPERT - Image Input")
     print("=" * 60)
     
     # ============================================
-    # PROVIDE YOUR INPUT HERE
+    # PROVIDE YOUR IMAGE PATH HERE
     # ============================================
     
-    text = """
-    PASTE YOUR MARKETING TEXT HERE.
-    Example: "DiabetoFix provides 47% reduction in HbA1c.
-    It is an effective treatment for diabetes management.
-    Ask your doctor about DiabetoFix today."
-    """
+    image_path = "C:/Users/user/Downloads/test.jpeg"  # <-- CHANGE THIS
     
     context = {
         "collateral_type": "Detail Aid",           # Change: Brochure, Leaflet, Email, etc.
@@ -37,6 +32,55 @@ async def test_copywriting():
         "purposes": "hcp_detailing",               # Change: patient_engagement, brand_awareness
         "brand_name": "YourBrandName",             # <-- CHANGE THIS
         "therapy_area": "Diabetes"                 # <-- CHANGE THIS
+    }
+    
+    # ============================================
+    
+    if not os.path.exists(image_path):
+        print(f"ERROR: Image not found at {image_path}")
+        print("Please update the image_path variable with a valid path.")
+        return
+    
+    expert = CopywritingExpert(api_key=API_KEY)
+    
+    print(f"Processing image: {image_path}")
+    print("-" * 50)
+    
+    # Use the new analyze_from_image method
+    result = await expert.analyze_from_image(image_path, context)
+    
+    import json
+    print("\n" + "=" * 50)
+    print("ANALYSIS RESULT:")
+    print("=" * 50)
+    print(json.dumps(result, indent=2))
+
+
+async def test_copywriting_from_text():
+    """Test Copywriting Expert with text input."""
+    from copywriting_expert import CopywritingExpert
+    
+    print("\n" + "=" * 60)
+    print("COPYWRITING EXPERT - Text Input")
+    print("=" * 60)
+    
+    # ============================================
+    # PROVIDE YOUR TEXT HERE
+    # ============================================
+    
+    text = """
+    DiabetoFix - Your Partner in Diabetes Care
+    47% HbA1c reduction in just 12 weeks!
+    Better than standard therapy. Safe for all patients.
+    Ask your doctor today.
+    """
+    
+    context = {
+        "collateral_type": "Detail Aid",
+        "target_audience": "General Practitioners",
+        "purposes": "hcp_detailing",
+        "brand_name": "DiabetoFix",
+        "therapy_area": "Diabetes"
     }
     
     # ============================================
@@ -55,23 +99,16 @@ async def test_visual():
     from PIL import Image
     
     print("\n" + "=" * 60)
-    print("VISUAL DESIGN EXPERT - Enter Your Input")
+    print("VISUAL DESIGN EXPERT - Image Analysis")
     print("=" * 60)
     
     # ============================================
-    # PROVIDE YOUR INPUT HERE
+    # PROVIDE YOUR IMAGE PATHS HERE
     # ============================================
     
-    # Option 1: Load images from files
     image_paths = [
-        "C:/Users/user/Downloads/test.jpeg",
-        # "path/to/your/image2.jpg",
+        "C:/Users/user/Downloads/test.jpeg",  # <-- CHANGE THIS
     ]
-    
-    images = []
-    for path in image_paths:
-        if os.path.exists(path):
-            images.append(Image.open(path))
     
     text = "Related text from your collateral for alignment check..."
     
@@ -84,6 +121,18 @@ async def test_visual():
     }
     
     # ============================================
+    
+    images = []
+    for path in image_paths:
+        if os.path.exists(path):
+            images.append(Image.open(path))
+            print(f"Loaded image: {path}")
+        else:
+            print(f"Image not found: {path}")
+    
+    if not images:
+        print("No images loaded. Please check your image paths.")
+        return
     
     expert = VisualDesignExpert(api_key=API_KEY)
     result = await expert.analyze(images, text, context)
@@ -98,7 +147,7 @@ async def test_medical():
     from medical_reviewer import MedicalReviewer
     
     print("\n" + "=" * 60)
-    print("MEDICAL REVIEWER - Enter Your Input")
+    print("MEDICAL REVIEWER - Claim Validation")
     print("=" * 60)
     
     # ============================================
@@ -106,31 +155,30 @@ async def test_medical():
     # ============================================
     
     collateral_text = """
-    PASTE YOUR COLLATERAL TEXT WITH CLAIMS HERE.
-    Example:
+    DiabetoFix - Key Benefits:
     - 47% reduction in HbA1c compared to placebo (p<0.001)
     - Well-tolerated with minimal side effects
     - Superior to standard metformin therapy
     - Suitable for all diabetic patients
     """
     
-    # Backup documents (extract text from your PDFs/docs)
     backup_docs = [
         {
             "filename": "Clinical_Trial.pdf",
             "text": """
-            PASTE EXTRACTED TEXT FROM YOUR BACKUP DOCUMENT HERE.
-            This should contain the evidence supporting your claims.
+            Phase 3 Clinical Trial Results:
+            - HbA1c reduction: 45.2% vs placebo (p<0.001)
+            - Common adverse events: UTI (3%), hypoglycemia (1.5%)
+            - Study population: Adults with Type 2 diabetes, eGFR>45
             """
         },
-        # Add more backup documents as needed
     ]
     
     metadata = {
-        "brand_name": "YourBrandName",            # <-- CHANGE THIS
-        "generic_name": "GenericDrugName",        # <-- CHANGE THIS
-        "therapy_area": "Diabetes",               # <-- CHANGE THIS
-        "indications": "Type 2 Diabetes Mellitus",# <-- CHANGE THIS
+        "brand_name": "DiabetoFix",
+        "generic_name": "Dapagliflozin",
+        "therapy_area": "Diabetes",
+        "indications": "Type 2 Diabetes Mellitus",
         "target_audience": "General Practitioners"
     }
     
@@ -150,22 +198,25 @@ async def main():
         print("Add it to .env file: GEMINI_API_KEY=your_key_here")
         return
     
-    print("Which agent do you want to test?")
-    print("1. Copywriting Expert")
-    print("2. Visual Design Expert")
-    print("3. Medical Reviewer")
-    print("4. All agents")
+    print("\nWhich agent do you want to test?")
+    print("1. Copywriting Expert (from IMAGE) <-- Extracts text from image first")
+    print("2. Copywriting Expert (from TEXT)")
+    print("3. Visual Design Expert")
+    print("4. Medical Reviewer")
+    print("5. All agents")
     
-    choice = input("\nEnter choice (1-4): ").strip()
+    choice = input("\nEnter choice (1-5): ").strip()
     
     if choice == "1":
-        await test_copywriting()
+        await test_copywriting_from_image()
     elif choice == "2":
-        await test_visual()
+        await test_copywriting_from_text()
     elif choice == "3":
-        await test_medical()
+        await test_visual()
     elif choice == "4":
-        await test_copywriting()
+        await test_medical()
+    elif choice == "5":
+        await test_copywriting_from_image()
         await test_visual()
         await test_medical()
     else:

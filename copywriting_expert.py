@@ -4,7 +4,8 @@ import asyncio
 import textstat
 import re
 import google.generativeai as genai
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Union
+from PIL import Image
 
 SYSTEM_PROMPT = """
 ROLE: You are a Pharmaceutical Copywriting Expert for Indian markets. Evaluate text for clarity, audience fit, and persuasion. Provide specific rewrites. Output JSON only.
@@ -65,10 +66,91 @@ RULES:
 6.	You are ADVISORY only—recommendations need human review.
 """
 
+TEXT_EXTRACTION_PROMPT = """
+Extract ALL text from this pharmaceutical marketing image.
+Include:
+- Headlines and titles
+- Body text and paragraphs
+- Bullet points
+- Captions
+- Any visible text on charts/graphs
+- Footer text and disclaimers
+
+Output the extracted text preserving the structure (use line breaks between sections).
+Do NOT add any commentary or analysis - just extract the text exactly as it appears.
+"""
+
+
 class CopywritingExpert:
     def __init__(self, api_key: str):
         genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel('gemini-pro')
+        self.model = genai.GenerativeModel('gemini-2.5-flash')
+        self.vision_model = genai.GenerativeModel('gemini-2.5-flash')
+
+    async def extract_text_from_image(self, image: Union[str, Image.Image]) -> str:
+        """
+        Extracts text from an image using Gemini Vision API.
+        
+        Args:
+            image: Either a file path (str) or PIL Image object.
+            
+        Returns:
+            Extracted text from the image.
+        """
+        try:
+            # Load image if path provided
+            if isinstance(image, str):
+                image = Image.open(image)
+            
+            response = await self.vision_model.generate_content_async([
+                TEXT_EXTRACTION_PROMPT,
+                image
+            ])
+            
+            return response.text.strip()
+            
+        except Exception as e:
+            return f"Error extracting text: {str(e)}"
+
+    async def analyze_from_image(self, image: Union[str, Image.Image], context: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Analyzes pharmaceutical marketing copy from an image.
+        
+        Flow:
+        1. Extract text from image using Gemini Vision
+        2. Analyze extracted text using Copywriting Expert
+        
+        Args:
+            image: Either a file path (str) or PIL Image object.
+            context: Context dictionary with collateral metadata.
+            
+        Returns:
+            Analysis result with extracted_text included.
+        """
+        # Step 1: Extract text from image
+        print("Step 1: Extracting text from image...")
+        extracted_text = await self.extract_text_from_image(image)
+        
+        if extracted_text.startswith("Error"):
+            return {
+                "error": extracted_text,
+                "overall_score": 0,
+                "dimensions": {},
+                "issues": [],
+                "strengths": [],
+                "priority_rewrites": []
+            }
+        
+        print(f"Extracted text ({len(extracted_text)} chars):\n{extracted_text[:500]}...")
+        
+        # Step 2: Analyze the extracted text
+        print("\nStep 2: Analyzing extracted text...")
+        result = await self.analyze(extracted_text, context)
+        
+        # Add extracted text to result
+        result["extracted_text"] = extracted_text
+        
+        return result
 
     async def analyze(self, text: str, context: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -110,6 +192,7 @@ class CopywritingExpert:
                 "strengths": [],
                 "priority_rewrites": []
             }
+
 
     def _construct_prompt(self, text: str, context: Dict[str, Any]) -> str:
         return f"{SYSTEM_PROMPT}\n\nAnalyze this pharmaceutical marketing copy.\n\nCONTEXT:\nCollateral Type: {context.get('collateral_type', 'Unknown')}\nTarget Audience: {context.get('target_audience', 'Unknown')}\nPurpose: {context.get('purposes', 'Unknown')}\nBrand: {context.get('brand_name', 'Unknown')}\nTherapy Area: {context.get('therapy_area', 'Unknown')}\n\nTEXT CONTENT:\n{text}\n\nProvide analysis with specific rewrites in JSON format."
