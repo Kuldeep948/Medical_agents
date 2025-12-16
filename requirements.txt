@@ -1,0 +1,5 @@
+google-generativeai
+textstat
+python-dotenv
+Pillow
+requests
